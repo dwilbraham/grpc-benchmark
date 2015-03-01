@@ -20,41 +20,43 @@ using grpc::ServerReader;
 using grpc::ServerReaderWriter;
 using grpc::ServerWriter;
 using grpc::Status;
+using benchmark::Count;
 using benchmark::Data;
+using benchmark::Empty;
 using std::chrono::system_clock;
 
 
 class BenchmarkImpl final : public benchmark::Benchmark::Service {
  public:
-  explicit BenchmarkImpl() {
+  explicit BenchmarkImpl() : 
+    data_request_count_(0)
+  {}
+
+  Status ResetCount(ServerContext* context, const Empty* empty,
+                    Count* count) override {
+    count->set_count(data_request_count_);
+    data_request_count_ = 0;
+    return Status::OK;
   }
 
   Status GetData(ServerContext* context, const Data* data_in,
                     Data* data_out) override {
     data_out->CopyFrom(*data_in);
-    data_out->set_count(1);
-    return Status::OK;
-  }
-/*
-  Status ListFeatures(ServerContext* context, const Rectangle* rectangle,
-                      ServerWriter<Feature>* writer) override {
-    auto lo = rectangle->lo();
-    auto hi = rectangle->hi();
-    long left = std::min(lo.longitude(), hi.longitude());
-    long right = std::max(lo.longitude(), hi.longitude());
-    long top = std::max(lo.latitude(), hi.latitude());
-    long bottom = std::min(lo.latitude(), hi.latitude());
-    for (const Feature& f : feature_list_) {
-      if (f.location().longitude() >= left &&
-          f.location().longitude() <= right &&
-          f.location().latitude() >= bottom &&
-          f.location().latitude() <= top) {
-        writer->Write(f);
-      }
-    }
+    data_out->set_count(++data_request_count_);
     return Status::OK;
   }
 
+  Status GetDataStream(ServerContext* context, const Data* data_in,
+                       ServerWriter<Data>* writer) override {
+    Data data_out;
+    data_out.CopyFrom(*data_in);
+    for (uint64_t i = 0; i < data_in->count(); ++i) {
+      data_out.set_count(++data_request_count_);
+      writer->Write(data_out);
+    }
+    return Status::OK;
+  }
+/*
   Status RecordRoute(ServerContext* context, ServerReader<Point>* reader,
                      RouteSummary* summary) override {
     Point point;
@@ -104,6 +106,7 @@ class BenchmarkImpl final : public benchmark::Benchmark::Service {
 */
  private:
 
+  uint64_t data_request_count_;
 };
 
 void RunServer() {

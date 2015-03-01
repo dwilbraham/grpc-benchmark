@@ -8,18 +8,26 @@ service Benchmark {
   rpc GetData(Data) returns (Data) {}
 
   // A server-to-client streaming RPC.
-//  rpc GetDataStream(Data) returns (stream Data) {}
+  rpc GetDataStream(Data) returns (stream Data) {}
 
   // A client-to-server streaming RPC.
-//  rpc SendDataStream(stream Data) returns (Data) {}
+  rpc SendDataStream(stream Data) returns (Data) {}
 
   // A Bidirectional streaming RPC.
-//  rpc DataStream(stream Data) returns (stream Data) {}
+  rpc DataStream(stream Data) returns (stream Data) {}
+
+  // Reset message count
+  rpc ResetCount(Empty) returns (Count) {}
 }
 
 message Data {
   string type  = 1;
   string value = 2;
-  int64  count = 3;
+  uint64 count = 3;
 }
 
+message Count {
+  uint64 count = 1;
+}
+
+message Empty {}

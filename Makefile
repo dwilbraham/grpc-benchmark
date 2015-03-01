@@ -1,6 +1,6 @@
 CXX = g++
 CPPFLAGS = -I/usr/local/include -pthread
-CXXFLAGS = -std=c++11
+CXXFLAGS = -std=c++11 -ggdb -Wall
 LDFLAGS = -L/usr/local/lib -lgpr -lgrpc -lgrpc++ -lprotobuf -lpthread -ldl
 PROTOC = protoc
 GRPC_CPP_PLUGIN = grpc_cpp_plugin

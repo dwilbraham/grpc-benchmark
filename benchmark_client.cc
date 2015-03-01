@@ -21,7 +21,9 @@ using grpc::ClientReader;
 using grpc::ClientReaderWriter;
 using grpc::ClientWriter;
 using grpc::Status;
+using benchmark::Count;
 using benchmark::Data;
+using benchmark::Empty;
 
 
 class BenchmarkClient {
@@ -30,15 +32,70 @@ class BenchmarkClient {
       : stub_(benchmark::Benchmark::NewStub(channel)) {
   }
 
-  void GetData() {
+  void ResetCount() {
     ClientContext context;
-    Data data, ret_data;
+    Empty empty;
+    Count count;
+    Status status = stub_->ResetCount(&context, empty, &count);
+    if (status.IsOk()) {
+      //std::cout << "  Count was: " << count.count() << std::endl;
+    }
+  }
+
+  void GetData(uint64_t loop_count) {
+    Data data;
+    Data ret_data;
     data.set_type("test");
     data.set_value("test2");
-    Status status = stub_->GetData(&context, data, &ret_data);
-    if (status.IsOk()) {
-      print_data(ret_data);
+
+    std::chrono::time_point<std::chrono::system_clock> start, end;
+    start = std::chrono::system_clock::now();
+
+    for(uint64_t i = 0; i < loop_count; ++i) {
+      ClientContext context;
+      Status status = stub_->GetData(&context, data, &ret_data);
+      if (!status.IsOk()) {
+        throw std::exception();
+      }
     }
+
+    end = std::chrono::system_clock::now();
+ 
+    std::chrono::duration<double> elapsed_seconds = end-start;
+    double avg = ret_data.count() / elapsed_seconds.count();
+ 
+    std::cout << "  Got\t" << ret_data.count() << "\tevents in\t"
+              << elapsed_seconds.count() << "s\t"
+              << "Average of\t" << avg << "\tevents/sec\n";
+  }
+
+  void GetDataStream(uint64_t loop_count) {
+    Data data;
+    Data ret_data;
+    data.set_type("test");
+    data.set_value("test2");
+    data.set_count(loop_count);
+
+    std::chrono::time_point<std::chrono::system_clock> start, end;
+    start = std::chrono::system_clock::now();
+
+    ClientContext context;
+    std::unique_ptr<ClientReader<Data> > reader(
+        stub_->GetDataStream(&context, data));
+    uint64_t i = 0;
+    while (reader->Read(&ret_data)) {
+      ++i;
+    }
+    Status status = reader->Finish();
+
+    end = std::chrono::system_clock::now();
+ 
+    std::chrono::duration<double> elapsed_seconds = end-start;
+    double avg = i / elapsed_seconds.count();
+ 
+    std::cout << "  Got\t" << i << "\tevents in\t"
+              << elapsed_seconds.count() << "s\t"
+              << "Average of\t" << avg << "\tevents/sec\n";
   }
 /*
   void ListFeatures() {
@@ -151,9 +208,10 @@ class BenchmarkClient {
 
  private:
   void print_data(const Data& data) {
-    std::cout << "  type: "  << data.type()  << std::endl;
-    std::cout << "  value: " << data.value() << std::endl;
-    std::cout << "  count: " << data.count() << std::endl;
+    std::cout << "  type:\t"    << data.type();
+    std::cout << "\t\tvalue:\t" << data.value();
+    std::cout << "\t\tcount:\t" << data.count();
+    std::cout << std::endl;
   }
 
   std::unique_ptr<benchmark::Benchmark::Stub> stub_;
@@ -163,14 +221,26 @@ int main(int argc, char** argv) {
   grpc_init();
 
   BenchmarkClient guide(
-      grpc::CreateChannelDeprecated("localhost:50051", ChannelArguments())
+      grpc::CreateChannelDeprecated("10.240.248.67:50051", ChannelArguments())
       );
 
   std::cout << "-------------- GetData --------------" << std::endl;
-  guide.GetData();
-/*  std::cout << "-------------- ListFeatures --------------" << std::endl;
-  guide.ListFeatures();
-  std::cout << "-------------- RecordRoute --------------" << std::endl;
+  guide.GetData(1);
+  guide.ResetCount();
+  guide.GetData(100);
+  guide.ResetCount();
+  guide.GetData(10000);
+  guide.ResetCount();
+  std::cout << "-------------- GetDataStream --------------" << std::endl;
+  guide.GetDataStream(1);
+  guide.ResetCount();
+  guide.GetDataStream(100);
+  guide.ResetCount();
+  guide.GetDataStream(10000);
+  guide.ResetCount();
+  guide.GetDataStream(1000000);
+  guide.ResetCount();
+/*  std::cout << "-------------- RecordRoute --------------" << std::endl;
   guide.RecordRoute();
   std::cout << "-------------- RouteChat --------------" << std::endl;
   guide.RouteChat();
