@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package benchmark;
+
+// Interface exported by the server.
+service Benchmark {
+  // A simple RPC.
+  rpc GetData(Data) returns (Data) {}
+
+  // A server-to-client streaming RPC.
+//  rpc GetDataStream(Data) returns (stream Data) {}
+
+  // A client-to-server streaming RPC.
+//  rpc SendDataStream(stream Data) returns (Data) {}
+
+  // A Bidirectional streaming RPC.
+//  rpc DataStream(stream Data) returns (stream Data) {}
+}
+
+message Data {
+  string type  = 1;
+  string value = 2;
+  int64  count = 3;
+}
+
